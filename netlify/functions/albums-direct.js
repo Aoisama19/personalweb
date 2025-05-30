@@ -149,6 +149,17 @@ exports.handler = async function(event, context) {
         try {
           // Get all albums for the user
           console.log('Querying Album collection for user:', userId);
+          console.log('Collection name:', Album.collection.name);
+          console.log('Model name:', Album.modelName);
+          
+          // First try to find any documents in the collection
+          const allDocs = await Album.find({}).limit(5);
+          console.log(`Found ${allDocs.length} total documents in collection`);
+          if (allDocs.length > 0) {
+            console.log('Sample document:', JSON.stringify(allDocs[0]));
+          }
+          
+          // Now try to find documents for this specific user
           const albums = await Album.find({ user: userId }).sort({ createdAt: -1 });
           console.log(`Found ${albums.length} albums for user`);
           

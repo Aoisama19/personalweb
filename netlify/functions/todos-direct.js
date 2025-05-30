@@ -41,7 +41,7 @@ const TodoListSchema = new mongoose.Schema({
 });
 
 // Create the model
-const TodoList = mongoose.model('todoList', TodoListSchema);
+const TodoList = mongoose.model('todolist', TodoListSchema);
 
 // Function to verify JWT token
 const verifyToken = (token) => {
@@ -140,6 +140,17 @@ exports.handler = async function(event, context) {
         try {
           // Get all todo lists for the user
           console.log('Querying TodoList collection for user:', userId);
+          console.log('Collection name:', TodoList.collection.name);
+          console.log('Model name:', TodoList.modelName);
+          
+          // First try to find any documents in the collection
+          const allDocs = await TodoList.find({}).limit(5);
+          console.log(`Found ${allDocs.length} total documents in collection`);
+          if (allDocs.length > 0) {
+            console.log('Sample document:', JSON.stringify(allDocs[0]));
+          }
+          
+          // Now try to find documents for this specific user
           const todoLists = await TodoList.find({ user: userId }).sort({ createdAt: -1 });
           console.log(`Found ${todoLists.length} todo lists for user`);
           
