@@ -40,8 +40,9 @@ const TodoListSchema = new mongoose.Schema({
   }
 });
 
-// Create the model
-const TodoList = mongoose.model('todolist', TodoListSchema);
+// Create the model with explicit collection name
+// Note: Mongoose typically pluralizes the model name, so we need to specify the exact collection name
+const TodoList = mongoose.model('TodoList', TodoListSchema, 'todolists');
 
 // Function to verify JWT token
 const verifyToken = (token) => {
@@ -115,14 +116,28 @@ exports.handler = async function(event, context) {
     
     // Connect to MongoDB
     console.log('Attempting to connect to MongoDB...');
+    console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
+    
     try {
-      await mongoose.connect(process.env.MONGODB_URI, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-      });
-      console.log('MongoDB connection successful');
+      // Check if we already have an active connection
+      if (mongoose.connection.readyState === 1) {
+        console.log('Using existing MongoDB connection');
+      } else {
+        console.log('Creating new MongoDB connection');
+        await mongoose.connect(process.env.MONGODB_URI, {
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+          serverSelectionTimeoutMS: 5000 // 5 second timeout
+        });
+        console.log('MongoDB connection successful');
+      }
+      
+      // List all collections in the database
+      const collections = await mongoose.connection.db.listCollections().toArray();
+      console.log('Available collections:', collections.map(c => c.name).join(', '));
     } catch (dbError) {
       console.error('MongoDB connection error:', dbError.message);
+      console.error('MongoDB connection error details:', dbError);
       throw dbError; // Re-throw to be caught by the outer try/catch
     }
     
