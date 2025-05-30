@@ -81,10 +81,15 @@ exports.handler = async function(event, context) {
   }
   
   try {
+    console.log('Albums direct function called with method:', event.httpMethod);
+    console.log('Path:', event.path);
+    
     // Get token from headers
     const authHeader = event.headers.authorization || event.headers.Authorization;
+    console.log('Auth header present:', !!authHeader);
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('No valid auth header found');
       return {
         statusCode: 401,
         headers,
@@ -96,11 +101,14 @@ exports.handler = async function(event, context) {
     }
     
     const token = authHeader.split(' ')[1];
+    console.log('Token extracted from header');
     
     // Verify token
     const { valid, decoded, error } = verifyToken(token);
+    console.log('Token validation result:', valid ? 'valid' : 'invalid');
     
     if (!valid) {
+      console.log('Token validation error:', error);
       return {
         statusCode: 401,
         headers,
@@ -112,11 +120,20 @@ exports.handler = async function(event, context) {
       };
     }
     
+    console.log('Token validated successfully for user ID:', decoded.user.id);
+    
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    console.log('Attempting to connect to MongoDB...');
+    try {
+      await mongoose.connect(process.env.MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+      });
+      console.log('MongoDB connection successful');
+    } catch (dbError) {
+      console.error('MongoDB connection error:', dbError.message);
+      throw dbError; // Re-throw to be caught by the outer try/catch
+    }
     
     const userId = decoded.user.id;
     const pathParts = event.path.split('/');
@@ -125,14 +142,22 @@ exports.handler = async function(event, context) {
     if (pathParts.length <= 3) {
       // Album operations
       if (event.httpMethod === 'GET') {
-        // Get all albums for the user
-        const albums = await Album.find({ user: userId }).sort({ createdAt: -1 });
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(albums)
-        };
+        console.log('Processing GET request for albums, user ID:', userId);
+        try {
+          // Get all albums for the user
+          console.log('Querying Album collection for user:', userId);
+          const albums = await Album.find({ user: userId }).sort({ createdAt: -1 });
+          console.log(`Found ${albums.length} albums for user`);
+          
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify(albums)
+          };
+        } catch (queryError) {
+          console.error('Error querying albums:', queryError.message);
+          throw queryError; // Re-throw to be caught by the outer try/catch
+        }
       } 
       else if (event.httpMethod === 'POST') {
         // Create a new album

@@ -36,14 +36,24 @@ export default function TodosPage() {
       }
       
       try {
+        console.log('Fetching todo lists...');
         setIsLoading(true);
+        
+        // Check if token exists
+        const token = localStorage.getItem('token');
+        console.log('Token exists:', !!token);
+        
         const data = await directApiCall.getTodoLists();
+        console.log('Todo lists data received:', data);
+        
         setLists(data);
         if (data.length > 0) {
           setActiveList(data[0]);
+          console.log('Set active list:', data[0].title);
         }
       } catch (err) {
         console.error('Error fetching todo lists:', err);
+        console.error('Error details:', err.response?.data || err.message || 'Unknown error');
         setError('Failed to load your todo lists. Please try again later.');
       } finally {
         setIsLoading(false);

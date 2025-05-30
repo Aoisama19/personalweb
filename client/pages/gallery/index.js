@@ -35,13 +35,28 @@ export default function GalleryPage() {
     const fetchAlbums = async () => {
       try {
         if (isAuthenticated) {
+          console.log('Fetching albums...');
           setLoading(true);
+          
+          // Check if token exists
+          const token = localStorage.getItem('token');
+          console.log('Token exists:', !!token);
+          
           const data = await directApiCall.getAlbums();
+          console.log('Albums data received:', data);
+          
           setAlbums(data);
           setError(null);
+          
+          if (data && data.length > 0) {
+            console.log('First album title:', data[0].title);
+          } else {
+            console.log('No albums found');
+          }
         }
       } catch (err) {
         console.error('Error fetching albums:', err);
+        console.error('Error details:', err.response?.data || err.message || 'Unknown error');
         setError('Failed to load albums. Please try again later.');
       } finally {
         setLoading(false);

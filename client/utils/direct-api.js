@@ -103,9 +103,12 @@ export const directApiCall = {
   // Todo Lists endpoints
   getTodoLists: async () => {
     try {
+      console.log('Calling todos-direct function...');
       const res = await api.get('/.netlify/functions/todos-direct');
+      console.log('Todo lists response:', res.data);
       return res.data;
     } catch (err) {
+      console.error('Error fetching todo lists:', err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -167,9 +170,12 @@ export const directApiCall = {
   // Photo Albums endpoints
   getAlbums: async () => {
     try {
+      console.log('Calling albums-direct function...');
       const res = await api.get('/.netlify/functions/albums-direct');
+      console.log('Albums response:', res.data);
       return res.data;
     } catch (err) {
+      console.error('Error fetching albums:', err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
