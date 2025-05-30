@@ -1,0 +1,266 @@
+import axios from 'axios';
+import { API_URL } from '../config';
+
+// Create axios instance with base URL
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Add a request interceptor to include auth token in headers
+api.interceptors.request.use(
+  config => {
+    // Get token from localStorage if it exists
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['x-auth-token'] = token;
+    }
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  }
+);
+
+// Helper functions for API calls
+export const apiCall = {
+  // Auth endpoints
+  register: async (userData) => {
+    try {
+      const res = await api.post('/users/register', userData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  login: async (userData) => {
+    try {
+      const res = await api.post('/users/login', userData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  getCurrentUser: async () => {
+    try {
+      const res = await api.get('/users/me');
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  // Important Dates endpoints
+  getDates: async () => {
+    try {
+      const res = await api.get('/dates');
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  addDate: async (dateData) => {
+    try {
+      const res = await api.post('/dates', dateData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  updateDate: async (id, dateData) => {
+    try {
+      const res = await api.put(`/dates/${id}`, dateData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  deleteDate: async (id) => {
+    try {
+      const res = await api.delete(`/dates/${id}`);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  // Calendar Events endpoints
+  getEvents: async () => {
+    try {
+      const res = await api.get('/events');
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  addEvent: async (eventData) => {
+    try {
+      const res = await api.post('/events', eventData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  updateEvent: async (id, eventData) => {
+    try {
+      const res = await api.put(`/events/${id}`, eventData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  deleteEvent: async (id) => {
+    try {
+      const res = await api.delete(`/events/${id}`);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  // Todo Lists endpoints
+  getTodoLists: async () => {
+    try {
+      const res = await api.get('/todos');
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  addTodoList: async (listData) => {
+    try {
+      const res = await api.post('/todos', listData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  updateTodoList: async (id, listData) => {
+    try {
+      const res = await api.put(`/todos/${id}`, listData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  deleteTodoList: async (id) => {
+    try {
+      const res = await api.delete(`/todos/${id}`);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  addTodo: async (listId, todoData) => {
+    try {
+      const res = await api.post(`/todos/${listId}/todo`, todoData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  updateTodo: async (listId, todoId, todoData) => {
+    try {
+      const res = await api.put(`/todos/${listId}/todo/${todoId}`, todoData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  deleteTodo: async (listId, todoId) => {
+    try {
+      const res = await api.delete(`/todos/${listId}/todo/${todoId}`);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  // Photo Albums endpoints
+  getAlbums: async () => {
+    try {
+      const res = await api.get('/albums');
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  addAlbum: async (albumData) => {
+    try {
+      const res = await api.post('/albums', albumData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  updateAlbum: async (id, albumData) => {
+    try {
+      const res = await api.put(`/albums/${id}`, albumData);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  deleteAlbum: async (id) => {
+    try {
+      const res = await api.delete(`/albums/${id}`);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  // For photo uploads, we need to handle multipart/form-data
+  addPhoto: async (albumId, photoData) => {
+    try {
+      const formData = new FormData();
+      
+      // Add photo file
+      formData.append('photo', photoData.file);
+      
+      // Add other data
+      if (photoData.caption) formData.append('caption', photoData.caption);
+      if (photoData.date) formData.append('date', photoData.date);
+      
+      const res = await api.post(`/albums/${albumId}/photos`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  },
+  
+  deletePhoto: async (albumId, photoId) => {
+    try {
+      const res = await api.delete(`/albums/${albumId}/photos/${photoId}`);
+      return res.data;
+    } catch (err) {
+      throw err.response.data;
+    }
+  }
+};
+
+export default api;

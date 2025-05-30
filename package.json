@@ -1,0 +1,31 @@
+{
+  "name": "personalweb",
+  "version": "1.0.0",
+  "description": "A full-stack web application for couples to manage their life together",
+  "main": "index.js",
+  "scripts": {
+    "client": "cd client && npm run dev",
+    "server": "cd server && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-client": "cd client && npm install",
+    "install-server": "cd server && npm install",
+    "install-all": "npm install && npm run install-client && npm run install-server",
+    "build-client": "cd client && npm run build",
+    "build-netlify": "npm run install-all && npm run build-client && npm run build-server",
+    "build-server": "cd server && npm run build",
+    "start": "cd server && npm start"
+  },
+  "keywords": [
+    "react",
+    "nextjs",
+    "express",
+    "mongodb",
+    "fullstack"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "concurrently": "^8.2.0",
+    "serverless-http": "^3.2.0"
+  }
+}
