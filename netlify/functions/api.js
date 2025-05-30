@@ -108,11 +108,18 @@ app.use('/api/*', (req, res, next) => {
   next();
 });
 
-// Routes
+// Routes - support both /api prefix and direct paths
 app.use('/api/users', userRoutes);
+app.use('/users', userRoutes); // Add direct path support
+
 app.use('/api/dates', dateRoutes);
+app.use('/dates', dateRoutes); // Add direct path support
+
 app.use('/api/events', eventRoutes);
+app.use('/events', eventRoutes); // Add direct path support
+
 app.use('/api/todos', todoRoutes);
+app.use('/todos', todoRoutes); // Add direct path support
 // Add any other routes you have
 
 // Health check endpoint
