@@ -15,3 +15,7 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Install dependencies for Netlify Functions
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
