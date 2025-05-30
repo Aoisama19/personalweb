@@ -29,7 +29,7 @@ export const apiCall = {
   // Auth endpoints
   register: async (userData) => {
     try {
-      const res = await api.post('/users/register', userData);
+      const res = await api.post('/api/users/register', userData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -38,7 +38,7 @@ export const apiCall = {
   
   login: async (userData) => {
     try {
-      const res = await api.post('/users/login', userData);
+      const res = await api.post('/api/users/login', userData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -47,7 +47,7 @@ export const apiCall = {
   
   getCurrentUser: async () => {
     try {
-      const res = await api.get('/users/me');
+      const res = await api.get('/api/users/me');
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -57,7 +57,7 @@ export const apiCall = {
   // Important Dates endpoints
   getDates: async () => {
     try {
-      const res = await api.get('/dates');
+      const res = await api.get('/api/dates');
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -66,7 +66,7 @@ export const apiCall = {
   
   addDate: async (dateData) => {
     try {
-      const res = await api.post('/dates', dateData);
+      const res = await api.post('/api/dates', dateData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -75,7 +75,7 @@ export const apiCall = {
   
   updateDate: async (id, dateData) => {
     try {
-      const res = await api.put(`/dates/${id}`, dateData);
+      const res = await api.put(`/api/dates/${id}`, dateData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -84,7 +84,7 @@ export const apiCall = {
   
   deleteDate: async (id) => {
     try {
-      const res = await api.delete(`/dates/${id}`);
+      const res = await api.delete(`/api/dates/${id}`);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -94,7 +94,7 @@ export const apiCall = {
   // Calendar Events endpoints
   getEvents: async () => {
     try {
-      const res = await api.get('/events');
+      const res = await api.get('/api/events');
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -103,7 +103,7 @@ export const apiCall = {
   
   addEvent: async (eventData) => {
     try {
-      const res = await api.post('/events', eventData);
+      const res = await api.post('/api/events', eventData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -112,7 +112,7 @@ export const apiCall = {
   
   updateEvent: async (id, eventData) => {
     try {
-      const res = await api.put(`/events/${id}`, eventData);
+      const res = await api.put(`/api/events/${id}`, eventData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -121,7 +121,7 @@ export const apiCall = {
   
   deleteEvent: async (id) => {
     try {
-      const res = await api.delete(`/events/${id}`);
+      const res = await api.delete(`/api/events/${id}`);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -131,7 +131,7 @@ export const apiCall = {
   // Todo Lists endpoints
   getTodoLists: async () => {
     try {
-      const res = await api.get('/todos');
+      const res = await api.get('/api/todos');
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -140,7 +140,7 @@ export const apiCall = {
   
   addTodoList: async (listData) => {
     try {
-      const res = await api.post('/todos', listData);
+      const res = await api.post('/api/todos', listData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -149,7 +149,7 @@ export const apiCall = {
   
   updateTodoList: async (id, listData) => {
     try {
-      const res = await api.put(`/todos/${id}`, listData);
+      const res = await api.put(`/api/todos/${id}`, listData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -158,7 +158,7 @@ export const apiCall = {
   
   deleteTodoList: async (id) => {
     try {
-      const res = await api.delete(`/todos/${id}`);
+      const res = await api.delete(`/api/todos/${id}`);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -167,7 +167,7 @@ export const apiCall = {
   
   addTodo: async (listId, todoData) => {
     try {
-      const res = await api.post(`/todos/${listId}/todo`, todoData);
+      const res = await api.post(`/api/todos/${listId}/todo`, todoData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -176,7 +176,7 @@ export const apiCall = {
   
   updateTodo: async (listId, todoId, todoData) => {
     try {
-      const res = await api.put(`/todos/${listId}/todo/${todoId}`, todoData);
+      const res = await api.put(`/api/todos/${listId}/todo/${todoId}`, todoData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -185,7 +185,7 @@ export const apiCall = {
   
   deleteTodo: async (listId, todoId) => {
     try {
-      const res = await api.delete(`/todos/${listId}/todo/${todoId}`);
+      const res = await api.delete(`/api/todos/${listId}/todo/${todoId}`);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -195,7 +195,7 @@ export const apiCall = {
   // Photo Albums endpoints
   getAlbums: async () => {
     try {
-      const res = await api.get('/albums');
+      const res = await api.get('/api/albums');
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -204,7 +204,7 @@ export const apiCall = {
   
   addAlbum: async (albumData) => {
     try {
-      const res = await api.post('/albums', albumData);
+      const res = await api.post('/api/albums', albumData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -213,7 +213,7 @@ export const apiCall = {
   
   updateAlbum: async (id, albumData) => {
     try {
-      const res = await api.put(`/albums/${id}`, albumData);
+      const res = await api.put(`/api/albums/${id}`, albumData);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -222,7 +222,7 @@ export const apiCall = {
   
   deleteAlbum: async (id) => {
     try {
-      const res = await api.delete(`/albums/${id}`);
+      const res = await api.delete(`/api/albums/${id}`);
       return res.data;
     } catch (err) {
       throw err.response.data;
@@ -241,7 +241,7 @@ export const apiCall = {
       if (photoData.caption) formData.append('caption', photoData.caption);
       if (photoData.date) formData.append('date', photoData.date);
       
-      const res = await api.post(`/albums/${albumId}/photos`, formData, {
+      const res = await api.post(`/api/albums/${albumId}/photos`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -255,7 +255,7 @@ export const apiCall = {
   
   deletePhoto: async (albumId, photoId) => {
     try {
-      const res = await api.delete(`/albums/${albumId}/photos/${photoId}`);
+      const res = await api.delete(`/api/albums/${albumId}/photos/${photoId}`);
       return res.data;
     } catch (err) {
       throw err.response.data;

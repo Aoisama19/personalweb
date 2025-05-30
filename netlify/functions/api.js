@@ -39,6 +39,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// Log all requests for debugging
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log('Request body:', req.body);
+  next();
+});
+
 // Connect to MongoDB
 const connectDB = async () => {
   try {
@@ -98,6 +105,26 @@ app.get('/api/debug', (req, res) => {
       platform: process.platform
     }
   });
+});
+
+// Direct route handler for user registration (for debugging)
+app.post('/users/register', async (req, res) => {
+  console.log('Direct registration endpoint hit');
+  console.log('Request body:', req.body);
+  
+  // Forward to the actual route handler
+  req.url = '/api/users/register';
+  app._router.handle(req, res);
+});
+
+// Direct route handler for user login (for debugging)
+app.post('/users/login', async (req, res) => {
+  console.log('Direct login endpoint hit');
+  console.log('Request body:', req.body);
+  
+  // Forward to the actual route handler
+  req.url = '/api/users/login';
+  app._router.handle(req, res);
 });
 
 // Export the serverless function
