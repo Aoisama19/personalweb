@@ -41,7 +41,7 @@ const TodoListSchema = new mongoose.Schema({
 });
 
 // Create the model
-const TodoList = mongoose.model('todolist', TodoListSchema);
+const TodoList = mongoose.model('todoList', TodoListSchema);
 
 // Function to verify JWT token
 const verifyToken = (token) => {

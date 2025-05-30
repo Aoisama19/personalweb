@@ -50,7 +50,7 @@ const AlbumSchema = new mongoose.Schema({
 });
 
 // Create the model
-const Album = mongoose.model('album', AlbumSchema);
+const Album = mongoose.model('album', AlbumSchema, 'albums');
 
 // Function to verify JWT token
 const verifyToken = (token) => {
