@@ -135,7 +135,10 @@ exports.handler = async function(event, context) {
       throw dbError; // Re-throw to be caught by the outer try/catch
     }
     
-    const userId = decoded.user.id;
+    // Extract user ID from decoded token
+    console.log('Decoded token:', JSON.stringify(decoded));
+    const userId = decoded.user ? decoded.user.id : decoded.id;
+    console.log('Using user ID:', userId);
     const pathParts = event.path.split('/');
     
     // Handle different HTTP methods for Albums
