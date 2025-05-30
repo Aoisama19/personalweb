@@ -155,25 +155,49 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
-// Direct route handler for user registration (for debugging)
+// Direct route handlers for authentication endpoints
 app.post('/users/register', async (req, res) => {
-  console.log('Direct registration endpoint hit');
+  console.log('Direct registration endpoint hit at /users/register');
   console.log('Request body:', req.body);
   
-  // Forward to the actual route handler
-  req.url = '/api/users/register';
-  app._router.handle(req, res);
+  try {
+    // Forward to the actual route handler
+    req.url = '/api/users/register';
+    app._router.handle(req, res);
+  } catch (error) {
+    console.error('Error in registration endpoint:', error);
+    res.status(500).json({ error: 'Internal server error during registration' });
+  }
 });
 
-// Direct route handler for user login (for debugging)
 app.post('/users/login', async (req, res) => {
-  console.log('Direct login endpoint hit');
+  console.log('Direct login endpoint hit at /users/login');
   console.log('Request body:', req.body);
   
-  // Forward to the actual route handler
-  req.url = '/api/users/login';
-  app._router.handle(req, res);
+  try {
+    // Forward to the actual route handler
+    req.url = '/api/users/login';
+    app._router.handle(req, res);
+  } catch (error) {
+    console.error('Error in login endpoint:', error);
+    res.status(500).json({ error: 'Internal server error during login' });
+  }
 });
+
+// Log all API requests for debugging
+app.use('/api/*', (req, res, next) => {
+  console.log(`API request: ${req.method} ${req.path}`);
+  next();
+});
+
+// Make sure routes are properly mounted
+console.log('Available routes:', app._router.stack
+  .filter(r => r.route)
+  .map(r => `${Object.keys(r.route.methods)[0].toUpperCase()} ${r.route.path}`)
+  .join('\n'));
+
+// Ensure the MongoDB models are properly loaded
+console.log('Checking User model:', !!require('../../server/models/User'));
 
 // Export the serverless function
 module.exports.handler = serverless(app);
