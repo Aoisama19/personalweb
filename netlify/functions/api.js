@@ -50,27 +50,62 @@ app.use((req, res, next) => {
 const connectDB = async () => {
   try {
     console.log('Attempting to connect to MongoDB...');
-    console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
     
-    await mongoose.connect(process.env.MONGODB_URI, {
+    // Log partial MongoDB URI for debugging (hide credentials)
+    const uriParts = process.env.MONGODB_URI ? process.env.MONGODB_URI.split('@') : [];
+    if (uriParts.length > 1) {
+      console.log('MongoDB URI format check:', 
+        `mongodb+srv://***:***@${uriParts[1].substring(0, 20)}...`);
+    } else {
+      console.log('MongoDB URI may be malformed');
+    }
+    
+    // Add more options to the connection
+    const options = {
       useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+      family: 4 // Use IPv4, skip trying IPv6
+    };
+    
+    await mongoose.connect(process.env.MONGODB_URI, options);
     
     console.log('MongoDB connected successfully');
     return true;
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
-    console.error('Full error:', err);
+    // Only log specific parts of the error to avoid exposing credentials
+    if (err.name === 'MongooseServerSelectionError') {
+      console.error('Server selection error - check network access and credentials');
+    }
     return false;
   }
 };
 
 // Don't exit process on connection failure in serverless environment
 connectDB().then(success => {
+  isDbConnected = success;
   if (!success) {
     console.log('Running without database connection. API calls that require database will fail.');
+  } else {
+    console.log('Database connection established and ready to handle requests');
   }
+});
+
+// Global connection state
+let isDbConnected = false;
+
+// Middleware to check database connection before processing API requests
+app.use('/api/*', (req, res, next) => {
+  if (!isDbConnected && req.method !== 'OPTIONS' && !req.path.includes('/debug')) {
+    console.log(`Blocking request to ${req.path} due to database connection issue`);
+    return res.status(503).json({ 
+      error: 'Database connection unavailable', 
+      message: 'The application is experiencing database connectivity issues. Please try again later.'
+    });
+  }
+  next();
 });
 
 // Routes
@@ -87,8 +122,16 @@ app.get('/api/health', (req, res) => {
 
 // Debug endpoint (remove in production)
 app.get('/api/debug', (req, res) => {
+  // Get MongoDB URI parts for debugging (hide credentials)
+  let mongoDbUriInfo = 'Not set';
+  const uriParts = process.env.MONGODB_URI ? process.env.MONGODB_URI.split('@') : [];
+  if (uriParts.length > 1) {
+    mongoDbUriInfo = `mongodb+srv://***:***@${uriParts[1].split('?')[0]}`;
+  }
+  
   const envVars = {
     mongoDbExists: !!process.env.MONGODB_URI,
+    mongoDbUriFormat: mongoDbUriInfo,
     jwtSecretExists: !!process.env.JWT_SECRET,
     emailUserExists: !!process.env.EMAIL_USER,
     emailPassExists: !!process.env.EMAIL_PASS,
@@ -99,10 +142,15 @@ app.get('/api/debug', (req, res) => {
   res.status(200).json({
     status: 'debug',
     environment: envVars,
+    databaseStatus: {
+      connected: isDbConnected,
+      message: isDbConnected ? 'Successfully connected to MongoDB' : 'Failed to connect to MongoDB'
+    },
     timestamp: new Date().toISOString(),
     serverInfo: {
       nodeVersion: process.version,
-      platform: process.platform
+      platform: process.platform,
+      netlifyFunction: true
     }
   });
 });
