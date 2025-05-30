@@ -23,7 +23,19 @@ export function AuthProvider({ children }) {
       }
       
       try {
-        const userData = await apiCall.getCurrentUser();
+        // Use the direct user endpoint
+        const response = await fetch('/.netlify/functions/user-direct', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to load user profile');
+        }
+        
+        const userData = await response.json();
         setUser(userData);
       } catch (err) {
         console.error('Failed to load user:', err);
@@ -79,10 +91,31 @@ export function AuthProvider({ children }) {
     setError(null);
     
     try {
-      await apiCall.register({ name, email, password });
+      // Use the direct registration endpoint
+      const response = await fetch('/.netlify/functions/register-direct', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, email, password })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed');
+      }
+      
+      // If registration is successful, automatically log the user in
+      if (data && data.token) {
+        localStorage.setItem('token', data.token);
+        setUser(data.user);
+      }
+      
       return true;
     } catch (err) {
-      setError(err.msg || 'Registration failed');
+      console.error('Registration error:', err);
+      setError(err.message || 'Registration failed');
       return false;
     } finally {
       setLoading(false);
