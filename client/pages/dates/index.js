@@ -6,7 +6,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { format, differenceInDays, isBefore, addYears } from 'date-fns';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext'; // Import useTheme
-import { apiCall } from '../../utils/api';
+import { directApiCall } from '../../utils/direct-api';
 
 // Category definitions for important dates
 const CATEGORIES = [
@@ -40,7 +40,7 @@ export default function Dates() {
 
       try {
         setIsLoading(true);
-        const data = await apiCall.getDates();
+        const data = await directApiCall.getDates();
         // Convert string dates to Date objects
         const formattedDates = data.map(date => ({
           ...date,
@@ -114,7 +114,7 @@ export default function Dates() {
   const handleDeleteDate = async (id) => {
     if (confirm('Are you sure you want to delete this date?')) {
       try {
-        await apiCall.deleteDate(id);
+        await directApiCall.deleteDate(id);
         setDates(dates.filter(date => date._id !== id));
       } catch (err) {
         console.error('Error deleting date:', err);
@@ -144,7 +144,7 @@ export default function Dates() {
     try {
       if (currentDate) {
         // Update existing date
-        const updatedDate = await apiCall.updateDate(currentDate._id, formData);
+        const updatedDate = await directApiCall.updateDate(currentDate._id, formData);
         setDates(dates.map(date =>
           date._id === currentDate._id
             ? { ...updatedDate, date: new Date(updatedDate.date) }
@@ -152,7 +152,7 @@ export default function Dates() {
         ));
       } else {
         // Add new date
-        const newDate = await apiCall.addDate(formData);
+        const newDate = await directApiCall.addDate(formData);
         setDates([...dates, { ...newDate, date: new Date(newDate.date) }]);
       }
 

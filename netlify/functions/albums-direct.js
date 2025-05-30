@@ -1,0 +1,347 @@
+// Direct Albums (Photo Gallery) function without Express routing
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+// Define the Photo and Album schemas
+const PhotoSchema = new mongoose.Schema({
+  url: {
+    type: String,
+    required: true
+  },
+  caption: {
+    type: String
+  },
+  date: {
+    type: Date,
+    default: Date.now
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const AlbumSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'user',
+    required: true
+  },
+  title: {
+    type: String,
+    required: true
+  },
+  description: {
+    type: String
+  },
+  date: {
+    type: Date,
+    default: Date.now
+  },
+  coverImage: {
+    type: String
+  },
+  photos: [PhotoSchema],
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+// Create the model
+const Album = mongoose.model('album', AlbumSchema);
+
+// Function to verify JWT token
+const verifyToken = (token) => {
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    return { valid: true, decoded };
+  } catch (err) {
+    return { valid: false, error: err.message };
+  }
+};
+
+exports.handler = async function(event, context) {
+  // CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+  
+  // Handle OPTIONS request (preflight)
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
+      headers,
+      body: ''
+    };
+  }
+  
+  try {
+    // Get token from headers
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Unauthorized', 
+          message: 'No token provided' 
+        })
+      };
+    }
+    
+    const token = authHeader.split(' ')[1];
+    
+    // Verify token
+    const { valid, decoded, error } = verifyToken(token);
+    
+    if (!valid) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Unauthorized', 
+          message: 'Invalid token', 
+          details: error 
+        })
+      };
+    }
+    
+    // Connect to MongoDB
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
+    
+    const userId = decoded.user.id;
+    const pathParts = event.path.split('/');
+    
+    // Handle different HTTP methods for Albums
+    if (pathParts.length <= 3) {
+      // Album operations
+      if (event.httpMethod === 'GET') {
+        // Get all albums for the user
+        const albums = await Album.find({ user: userId }).sort({ createdAt: -1 });
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(albums)
+        };
+      } 
+      else if (event.httpMethod === 'POST') {
+        // Create a new album
+        const { title, description, date, coverImage } = JSON.parse(event.body);
+        
+        // Validate required fields
+        if (!title) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Bad request', 
+              message: 'Title is required' 
+            })
+          };
+        }
+        
+        const newAlbum = new Album({
+          user: userId,
+          title,
+          description,
+          date: date || new Date(),
+          coverImage,
+          photos: []
+        });
+        
+        await newAlbum.save();
+        
+        return {
+          statusCode: 201,
+          headers,
+          body: JSON.stringify(newAlbum)
+        };
+      } 
+      else if (event.httpMethod === 'PUT') {
+        // Update an existing album
+        const albumId = pathParts[2];
+        const updates = JSON.parse(event.body);
+        
+        // Find the album and make sure it belongs to the user
+        let album = await Album.findOne({ _id: albumId, user: userId });
+        
+        if (!album) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Not found', 
+              message: 'Album not found or does not belong to user' 
+            })
+          };
+        }
+        
+        // Update the album
+        album = await Album.findByIdAndUpdate(
+          albumId,
+          { $set: updates },
+          { new: true }
+        );
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(album)
+        };
+      } 
+      else if (event.httpMethod === 'DELETE') {
+        // Delete an album
+        const albumId = pathParts[2];
+        
+        // Find the album and make sure it belongs to the user
+        const album = await Album.findOne({ _id: albumId, user: userId });
+        
+        if (!album) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Not found', 
+              message: 'Album not found or does not belong to user' 
+            })
+          };
+        }
+        
+        await Album.findByIdAndDelete(albumId);
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ message: 'Album deleted successfully' })
+        };
+      }
+    } 
+    // Handle Photo operations
+    else if (pathParts.length >= 4 && pathParts[3] === 'photos') {
+      const albumId = pathParts[2];
+      
+      // Find the album and make sure it belongs to the user
+      const album = await Album.findOne({ _id: albumId, user: userId });
+      
+      if (!album) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Not found', 
+            message: 'Album not found or does not belong to user' 
+          })
+        };
+      }
+      
+      if (event.httpMethod === 'POST') {
+        // Add a new photo to the album
+        const { url, caption, date } = JSON.parse(event.body);
+        
+        // Validate required fields
+        if (!url) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Bad request', 
+              message: 'Photo URL is required' 
+            })
+          };
+        }
+        
+        const newPhoto = {
+          url,
+          caption,
+          date: date || new Date(),
+          createdAt: new Date()
+        };
+        
+        album.photos.push(newPhoto);
+        
+        // If this is the first photo, set it as the cover image
+        if (!album.coverImage && album.photos.length === 1) {
+          album.coverImage = url;
+        }
+        
+        await album.save();
+        
+        return {
+          statusCode: 201,
+          headers,
+          body: JSON.stringify(newPhoto)
+        };
+      } 
+      else if (event.httpMethod === 'DELETE' && pathParts.length >= 5) {
+        // Delete a photo from the album
+        const photoId = pathParts[4];
+        
+        // Find the photo in the album
+        const photo = album.photos.id(photoId);
+        
+        if (!photo) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Not found', 
+              message: 'Photo not found in the album' 
+            })
+          };
+        }
+        
+        // Remove the photo
+        album.photos.pull(photoId);
+        
+        // If the deleted photo was the cover image, update the cover image
+        if (album.coverImage === photo.url && album.photos.length > 0) {
+          album.coverImage = album.photos[0].url;
+        } else if (album.photos.length === 0) {
+          album.coverImage = '';
+        }
+        
+        await album.save();
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ message: 'Photo deleted successfully' })
+        };
+      }
+    }
+    
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  } catch (error) {
+    console.error('Albums error:', error.message);
+    
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'Server error', 
+        message: error.message,
+        stack: process.env.NODE_ENV === 'production' ? null : error.stack
+      })
+    };
+  } finally {
+    // Close the connection
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+      console.log('MongoDB connection closed');
+    }
+  }
+};
