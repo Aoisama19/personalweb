@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Layout from '../../components/layout/Layout';
 import { FaPlus, FaEdit, FaTrash, FaFolder, FaImage, FaSearch, FaHeart } from 'react-icons/fa';
-import { apiCall } from '../../utils/api';
+import { directApiCall } from '../../utils/direct-api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext'; // Import useTheme
 
@@ -36,7 +36,7 @@ export default function GalleryPage() {
       try {
         if (isAuthenticated) {
           setLoading(true);
-          const data = await apiCall.getAlbums();
+          const data = await directApiCall.getAlbums();
           setAlbums(data);
           setError(null);
         }
@@ -80,7 +80,7 @@ export default function GalleryPage() {
   const handleDeleteAlbum = async (id) => {
     if (confirm('Are you sure you want to delete this album?')) {
       try {
-        await apiCall.deleteAlbum(id);
+        await directApiCall.deleteAlbum(id);
         setAlbums(albums.filter(album => album._id !== id));
 
         if (activeAlbum && activeAlbum._id === id) {
@@ -105,7 +105,7 @@ export default function GalleryPage() {
     try {
       if (currentAlbum) {
         // Update existing album
-        const updatedAlbum = await apiCall.updateAlbum(currentAlbum._id, albumData);
+        const updatedAlbum = await directApiCall.updateAlbum(currentAlbum._id, albumData);
         const updatedAlbums = albums.map(album =>
           album._id === currentAlbum._id ? updatedAlbum : album
         );
@@ -117,7 +117,7 @@ export default function GalleryPage() {
         }
       } else {
         // Add new album
-        const newAlbum = await apiCall.addAlbum(albumData);
+        const newAlbum = await directApiCall.addAlbum(albumData);
         setAlbums([...albums, newAlbum]);
       }
 
@@ -164,7 +164,7 @@ export default function GalleryPage() {
       };
 
       // Upload photo to API
-      const updatedAlbum = await apiCall.addPhoto(activeAlbum._id, photoData);
+      const updatedAlbum = await directApiCall.addPhoto(activeAlbum._id, photoData);
 
       // Update albums array
       const updatedAlbums = albums.map(album =>
@@ -186,7 +186,7 @@ export default function GalleryPage() {
 
     if (confirm('Are you sure you want to delete this photo?')) {
       try {
-        await apiCall.deletePhoto(activeAlbum._id, photoId);
+        await directApiCall.deletePhoto(activeAlbum._id, photoId);
 
         // Create updated album with photo removed
         const updatedAlbum = {

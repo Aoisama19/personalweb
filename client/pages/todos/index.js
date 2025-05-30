@@ -3,7 +3,7 @@ import Layout from '../../components/layout/Layout';
 import { FaPlus, FaEdit, FaTrash, FaCheck, FaRegCircle, FaEllipsisH, FaList } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { apiCall } from '../../utils/api';
+import { directApiCall } from '../../utils/direct-api';
 
 // List of available icons
 const ICONS = ['📝', '🛒', '🏠', '🎉', '💼', '🍽️', '🧹', '📚', '🎯', '🎁', '🚗', '💰', '🏋️', '🧘', '🎮', '🔧'];
@@ -37,7 +37,7 @@ export default function TodosPage() {
       
       try {
         setIsLoading(true);
-        const data = await apiCall.getTodoLists();
+        const data = await directApiCall.getTodoLists();
         setLists(data);
         if (data.length > 0) {
           setActiveList(data[0]);
@@ -74,7 +74,7 @@ export default function TodosPage() {
   const handleDeleteList = async (id) => {
     if (confirm('Are you sure you want to delete this list?')) {
       try {
-        await apiCall.deleteTodoList(id);
+        await directApiCall.deleteTodoList(id);
         const newLists = lists.filter(list => list._id !== id);
         setLists(newLists);
         
@@ -97,7 +97,7 @@ export default function TodosPage() {
     try {
       if (currentList) {
         // Update existing list
-        const updatedList = await apiCall.updateTodoList(currentList._id, {
+        const updatedList = await directApiCall.updateTodoList(currentList._id, {
           title: listFormData.title,
           icon: listFormData.icon
         });
@@ -113,7 +113,7 @@ export default function TodosPage() {
         }
       } else {
         // Add new list
-        const newList = await apiCall.addTodoList({
+        const newList = await directApiCall.addTodoList({
           title: listFormData.title,
           icon: listFormData.icon
         });
@@ -154,7 +154,7 @@ export default function TodosPage() {
     if (confirm('Are you sure you want to delete this task?')) {
       try {
         // This returns the updated list without the deleted todo
-        const updatedList = await apiCall.deleteTodo(activeList._id, id);
+        const updatedList = await directApiCall.deleteTodo(activeList._id, id);
         
         // Update the active list with the response from the API
         setActiveList(updatedList);
@@ -177,7 +177,7 @@ export default function TodosPage() {
     try {
       if (currentTodo) {
         // Update existing todo
-        const updatedTodo = await apiCall.updateTodo(
+        const updatedTodo = await directApiCall.updateTodo(
           activeList._id, 
           currentTodo._id, 
           { text: todoFormData.text }
@@ -197,7 +197,7 @@ export default function TodosPage() {
         setLists(updatedLists);
       } else {
         // Add new todo
-        const updatedList = await apiCall.addTodo(
+        const updatedList = await directApiCall.addTodo(
           activeList._id, 
           { text: todoFormData.text }
         );
@@ -233,7 +233,7 @@ export default function TodosPage() {
       const newStatus = !activeList.todos[todoIndex].completed;
       
       // Update todo in API - this returns the full updated list
-      const updatedList = await apiCall.updateTodo(
+      const updatedList = await directApiCall.updateTodo(
         activeList._id,
         id,
         { completed: newStatus }

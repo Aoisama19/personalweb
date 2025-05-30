@@ -4,7 +4,7 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { format, parseISO, isToday, isSameDay } from 'date-fns';
 import { FaPlus, FaEdit, FaTrash, FaClock, FaMapMarkerAlt, FaUserFriends } from 'react-icons/fa';
-import { apiCall } from '../../utils/api';
+import { directApiCall } from '../../utils/direct-api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -30,7 +30,7 @@ export default function CalendarPage() {
       try {
         if (isAuthenticated) {
           setLoading(true);
-          const data = await apiCall.getEvents();
+          const data = await directApiCall.getEvents();
           setEvents(data);
           setError(null);
         }
@@ -100,7 +100,7 @@ export default function CalendarPage() {
   const handleDeleteEvent = async (id) => {
     if (confirm('Are you sure you want to delete this event?')) {
       try {
-        await apiCall.deleteEvent(id);
+        await directApiCall.deleteEvent(id);
         setEvents(events.filter(event => event._id !== id));
       } catch (err) {
         console.error('Error deleting event:', err);
@@ -155,13 +155,13 @@ export default function CalendarPage() {
       
       if (currentEvent) {
         // Update existing event
-        updatedEvent = await apiCall.updateEvent(currentEvent._id, eventData);
+        updatedEvent = await directApiCall.updateEvent(currentEvent._id, eventData);
         setEvents(events.map(event => 
           event._id === currentEvent._id ? updatedEvent : event
         ));
       } else {
         // Create new event
-        updatedEvent = await apiCall.addEvent(eventData);
+        updatedEvent = await directApiCall.addEvent(eventData);
         setEvents([...events, updatedEvent]);
       }
       
