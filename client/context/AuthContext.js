@@ -42,16 +42,31 @@ export function AuthProvider({ children }) {
     setError(null);
     
     try {
-      const data = await apiCall.login({ email, password });
+      // Use the direct login endpoint that we know works
+      const response = await fetch('/.netlify/functions/login-direct', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
       
       if (data && data.token) {
         localStorage.setItem('token', data.token);
-        const userData = await apiCall.getCurrentUser();
-        setUser(userData);
+        setUser(data.user);
         return true;
+      } else {
+        throw new Error('No token received');
       }
     } catch (err) {
-      setError(err.msg || 'Login failed');
+      console.error('Login error:', err);
+      setError(err.message || 'Login failed');
       return false;
     } finally {
       setLoading(false);
