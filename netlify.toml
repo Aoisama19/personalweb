@@ -1,0 +1,36 @@
+[build]
+  base = ""
+  publish = "client/out"
+  command = "npm run build-netlify"
+
+# Redirect API requests to Netlify Functions
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Handle client-side routing for Next.js
+[[redirects]]
+  from = "/*"
+  to = "/_next/static/:splat"
+  status = 200
+  force = true
+  conditions = {Path = ["/_next/static/**"]}
+
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Install dependencies for Netlify Functions
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
+[build.environment]
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
