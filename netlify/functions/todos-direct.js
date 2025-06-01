@@ -291,9 +291,21 @@ exports.handler = async function(event, context) {
     }
     // Handle Todo item operations
     else if (pathParts.length >= 4) {
-      console.log('Handling todo item operation with path parts:', pathParts);
+      console.log('Handling todo item operation with path parts:', JSON.stringify(pathParts));
       const listId = pathParts[2];
-      const todoOperation = pathParts[3];
+      
+      // Check if this is a valid MongoDB ObjectId
+      if (!listId.match(/^[0-9a-fA-F]{24}$/)) {
+        console.log('Invalid list ID format:', listId);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Bad request', 
+            message: 'Invalid list ID format' 
+          })
+        };
+      }
       
       // Find the todo list and make sure it belongs to the user
       const todoList = await TodoList.findOne({ _id: listId, user: userId });
@@ -309,7 +321,8 @@ exports.handler = async function(event, context) {
         };
       }
       
-      if (event.httpMethod === 'POST') {
+      // Check if this is a todos operation
+      if (pathParts[3] === 'todos' && event.httpMethod === 'POST') {
         // Add a new todo to the list
         console.log('Adding new todo to list:', listId, 'Request body:', event.body);
         try {
@@ -336,15 +349,28 @@ exports.handler = async function(event, context) {
           };
           
           todoList.todos.push(newTodo);
-          const savedList = await todoList.save();
-          console.log('Todo added successfully with ID:', savedList.todos[savedList.todos.length - 1]._id);
           
-          // Return the entire updated list so the frontend has the latest data
-          return {
-            statusCode: 201,
-            headers,
-            body: JSON.stringify(savedList)
-          };
+          try {
+            const savedList = await todoList.save();
+            console.log('Todo added successfully with ID:', savedList.todos[savedList.todos.length - 1]._id);
+            
+            // Return the entire updated list so the frontend has the latest data
+            return {
+              statusCode: 201,
+              headers,
+              body: JSON.stringify(savedList)
+            };
+          } catch (saveError) {
+            console.error('Error saving todo list:', saveError);
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ 
+                error: 'Server error', 
+                message: 'Failed to save todo: ' + saveError.message 
+              })
+            };
+          }
         } catch (parseError) {
           console.error('Error parsing request body:', parseError);
           return {
@@ -352,7 +378,7 @@ exports.handler = async function(event, context) {
             headers,
             body: JSON.stringify({ 
               error: 'Bad request', 
-              message: 'Invalid request body' 
+              message: 'Invalid request body: ' + parseError.message 
             })
           };
         }
@@ -388,31 +414,28 @@ exports.handler = async function(event, context) {
           body: JSON.stringify(todo)
         };
       } 
-      else if (event.httpMethod === 'DELETE') {
-        // Delete a todo from the list
-        console.log('Deleting todo from list:', listId);
+      // Handle DELETE for todos
+      else if (pathParts[3] === 'todos' && pathParts.length >= 5 && event.httpMethod === 'DELETE') {
+        const todoId = pathParts[4];
+        console.log('Deleting specific todo with ID:', todoId);
         
-        // Check if we're deleting a specific todo or the entire list
-        if (todoOperation === 'todo' && pathParts.length >= 5) {
-          const todoId = pathParts[4];
-          console.log('Deleting specific todo with ID:', todoId);
-          
-          // Find the todo in the list
-          const todo = todoList.todos.id(todoId);
-          
-          if (!todo) {
-            console.log('Todo not found in the list');
-            return {
-              statusCode: 404,
-              headers,
-              body: JSON.stringify({ 
-                error: 'Not found', 
-                message: 'Todo not found in the list' 
-              })
-            };
-          }
-          
-          // Remove the todo
+        // Find the todo in the list
+        const todo = todoList.todos.id(todoId);
+        
+        if (!todo) {
+          console.log('Todo not found in the list');
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Not found', 
+              message: 'Todo not found in the list' 
+            })
+          };
+        }
+        
+        // Remove the todo
+        try {
           todoList.todos.pull(todoId);
           const savedList = await todoList.save();
           console.log('Todo deleted successfully');
@@ -423,14 +446,14 @@ exports.handler = async function(event, context) {
             headers,
             body: JSON.stringify(savedList)
           };
-        } else {
-          console.log('Invalid path for DELETE operation:', event.path);
+        } catch (saveError) {
+          console.error('Error removing todo from list:', saveError);
           return {
-            statusCode: 400,
+            statusCode: 500,
             headers,
             body: JSON.stringify({ 
-              error: 'Bad request', 
-              message: 'Invalid path for todo deletion' 
+              error: 'Server error', 
+              message: 'Failed to delete todo: ' + saveError.message 
             })
           };
         }

@@ -302,9 +302,26 @@ exports.handler = async function(event, context) {
       
       if (event.httpMethod === 'POST') {
         // Add a new photo to the album
-        console.log('Adding new photo to album:', albumId, 'Request body:', event.body);
+        console.log('Adding new photo to album:', albumId);
         try {
-          const { url, caption, date } = JSON.parse(event.body);
+          // Parse the request body
+          let requestBody;
+          try {
+            requestBody = JSON.parse(event.body);
+            console.log('Request body parsed successfully');
+          } catch (parseError) {
+            console.error('Error parsing request body:', parseError);
+            return {
+              statusCode: 400,
+              headers,
+              body: JSON.stringify({ 
+                error: 'Bad request', 
+                message: 'Invalid JSON in request body: ' + parseError.message 
+              })
+            };
+          }
+          
+          const { url, caption, date } = requestBody;
           
           // Validate required fields
           if (!url) {
@@ -319,15 +336,18 @@ exports.handler = async function(event, context) {
             };
           }
           
-          console.log('Creating new photo with URL:', url);
+          console.log('Creating new photo with URL type:', typeof url);
+          console.log('URL starts with:', url.substring(0, 30) + '...');
+          
+          // Create the new photo object
           const newPhoto = {
-            url,
+            url: url,
             caption: caption || '',
             date: date ? new Date(date) : new Date(),
             createdAt: new Date()
           };
           
-          console.log('New photo object:', newPhoto);
+          console.log('New photo object created');
           
           // Add the photo to the album
           album.photos.push(newPhoto);
@@ -338,8 +358,22 @@ exports.handler = async function(event, context) {
           }
           
           console.log('Saving album with new photo...');
-          const savedAlbum = await album.save();
-          console.log('Photo added successfully to album with ID:', savedAlbum.photos[savedAlbum.photos.length - 1]._id);
+          let savedAlbum;
+          try {
+            savedAlbum = await album.save();
+            console.log('Album saved successfully');
+            console.log('Photo added with ID:', savedAlbum.photos[savedAlbum.photos.length - 1]._id);
+          } catch (saveError) {
+            console.error('Error saving album:', saveError);
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ 
+                error: 'Server error', 
+                message: 'Failed to save photo to album: ' + saveError.message 
+              })
+            };
+          }
           
           // Return the entire updated album so the frontend has the latest data
           return {
@@ -347,14 +381,14 @@ exports.handler = async function(event, context) {
             headers,
             body: JSON.stringify(savedAlbum)
           };
-        } catch (parseError) {
-          console.error('Error parsing request body:', parseError);
+        } catch (error) {
+          console.error('Unexpected error processing photo upload:', error);
           return {
-            statusCode: 400,
+            statusCode: 500,
             headers,
             body: JSON.stringify({ 
-              error: 'Bad request', 
-              message: 'Invalid request body: ' + parseError.message 
+              error: 'Server error', 
+              message: 'Unexpected error processing photo upload: ' + error.message 
             })
           };
         }

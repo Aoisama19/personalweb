@@ -142,27 +142,36 @@ export const directApiCall = {
   
   addTodo: async (listId, todoData) => {
     try {
-      const res = await api.post(`/.netlify/functions/todos-direct/${listId}/todo`, todoData);
+      console.log('Adding todo to list:', listId, 'Todo data:', todoData);
+      const res = await api.post(`/.netlify/functions/todos-direct/${listId}/todos`, todoData);
+      console.log('Add todo response:', res.data);
       return res.data;
     } catch (err) {
+      console.error('Error adding todo:', err.response?.data || err.message || err);
       throw err.response?.data || err;
     }
   },
   
   updateTodo: async (listId, todoId, todoData) => {
     try {
-      const res = await api.put(`/.netlify/functions/todos-direct/${listId}/todo/${todoId}`, todoData);
+      console.log('Updating todo:', todoId, 'in list:', listId, 'Todo data:', todoData);
+      const res = await api.put(`/.netlify/functions/todos-direct/${listId}/todos/${todoId}`, todoData);
+      console.log('Update todo response:', res.data);
       return res.data;
     } catch (err) {
+      console.error('Error updating todo:', err.response?.data || err.message || err);
       throw err.response?.data || err;
     }
   },
   
   deleteTodo: async (listId, todoId) => {
     try {
-      const res = await api.delete(`/.netlify/functions/todos-direct/${listId}/todo/${todoId}`);
+      console.log('Deleting todo:', todoId, 'from list:', listId);
+      const res = await api.delete(`/.netlify/functions/todos-direct/${listId}/todos/${todoId}`);
+      console.log('Delete todo response:', res.data);
       return res.data;
     } catch (err) {
+      console.error('Error deleting todo:', err.response?.data || err.message || err);
       throw err.response?.data || err;
     }
   },
@@ -210,22 +219,58 @@ export const directApiCall = {
   // For photo uploads, we need to handle multipart/form-data
   addPhoto: async (albumId, photoData) => {
     try {
-      console.log('Adding photo to album:', albumId, 'Photo data:', photoData);
+      console.log('Adding photo to album:', albumId);
       
-      // For direct functions, we'll just pass the URL and caption
-      // Note: In a real app, you'd need to handle file uploads separately
-      const photoPayload = {
-        url: photoData.url || photoData.file,
-        caption: photoData.caption || '',
-        date: photoData.date || new Date().toISOString()
-      };
+      // Convert File object to base64 string if it's a File
+      let photoUrl = photoData.url;
       
-      console.log('Sending photo data:', photoPayload);
-      
-      const res = await api.post(`/.netlify/functions/albums-direct/${albumId}/photos`, photoPayload);
-      console.log('Photo upload response:', res.data);
-      
-      return res.data;
+      if (photoData.file && typeof photoData.file !== 'string') {
+        // It's a File object, convert to base64
+        const file = photoData.file;
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = async () => {
+            try {
+              const base64String = reader.result;
+              
+              const photoPayload = {
+                url: base64String,
+                caption: photoData.caption || '',
+                date: photoData.date || new Date().toISOString()
+              };
+              
+              console.log('Sending photo data with base64 image');
+              
+              const res = await api.post(`/.netlify/functions/albums-direct/${albumId}/photos`, photoPayload);
+              console.log('Photo upload response received');
+              
+              resolve(res.data);
+            } catch (error) {
+              console.error('Error in file upload process:', error);
+              reject(error);
+            }
+          };
+          reader.onerror = (error) => {
+            console.error('Error reading file:', error);
+            reject(error);
+          };
+        });
+      } else {
+        // It's a URL string, send directly
+        const photoPayload = {
+          url: photoData.url || photoData.file,
+          caption: photoData.caption || '',
+          date: photoData.date || new Date().toISOString()
+        };
+        
+        console.log('Sending photo data with URL');
+        
+        const res = await api.post(`/.netlify/functions/albums-direct/${albumId}/photos`, photoPayload);
+        console.log('Photo upload response received');
+        
+        return res.data;
+      }
     } catch (err) {
       console.error('Error uploading photo:', err.response?.data || err.message || err);
       throw err.response?.data || err;
