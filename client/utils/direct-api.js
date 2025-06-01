@@ -219,47 +219,69 @@ export const directApiCall = {
   // For photo uploads, we need to handle multipart/form-data
   addPhoto: async (albumId, photoData) => {
     try {
-      console.log('Adding photo to album:', albumId);
+      console.log('Adding photo to album:', albumId, 'Photo data:', JSON.stringify(photoData, null, 2));
       
-      // Convert File object to base64 string if it's a File
-      let photoUrl = photoData.url;
-      
-      if (photoData.file && typeof photoData.file !== 'string') {
-        // It's a File object, convert to base64
-        const file = photoData.file;
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = async () => {
-            try {
-              const base64String = reader.result;
-              
-              const photoPayload = {
-                url: base64String,
-                caption: photoData.caption || '',
-                date: photoData.date || new Date().toISOString()
-              };
-              
-              console.log('Sending photo data with base64 image');
-              
-              const res = await api.post(`/.netlify/functions/albums-direct/${albumId}/photos`, photoPayload);
-              console.log('Photo upload response received');
-              
-              resolve(res.data);
-            } catch (error) {
-              console.error('Error in file upload process:', error);
+      // Check if we have a file or a URL
+      if (photoData.file) {
+        console.log('File detected, type:', typeof photoData.file);
+        
+        // If it's a File object, convert to base64
+        if (typeof photoData.file !== 'string' && photoData.file instanceof File) {
+          console.log('Converting File object to base64, file name:', photoData.file.name);
+          
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(photoData.file);
+            
+            reader.onload = async () => {
+              try {
+                const base64String = reader.result;
+                console.log('File converted to base64, length:', base64String.length);
+                
+                const photoPayload = {
+                  url: base64String,
+                  caption: photoData.caption || '',
+                  date: photoData.date || new Date().toISOString()
+                };
+                
+                console.log('Sending photo data with base64 image to:', `/.netlify/functions/albums-direct/${albumId}/photos`);
+                
+                const res = await api.post(`/.netlify/functions/albums-direct/${albumId}/photos`, photoPayload);
+                console.log('Photo upload response received:', res.status);
+                
+                resolve(res.data);
+              } catch (error) {
+                console.error('Error in file upload process:', error.response?.data || error.message || error);
+                reject(error.response?.data || error);
+              }
+            };
+            
+            reader.onerror = (error) => {
+              console.error('Error reading file:', error);
               reject(error);
-            }
+            };
+          });
+        } else {
+          // It's a file path or URL as string
+          console.log('File is a string, treating as URL');
+          const photoPayload = {
+            url: photoData.file,
+            caption: photoData.caption || '',
+            date: photoData.date || new Date().toISOString()
           };
-          reader.onerror = (error) => {
-            console.error('Error reading file:', error);
-            reject(error);
-          };
-        });
-      } else {
+          
+          console.log('Sending photo data with URL string');
+          const res = await api.post(`/.netlify/functions/albums-direct/${albumId}/photos`, photoPayload);
+          console.log('Photo upload response received');
+          
+          return res.data;
+        }
+      } else if (photoData.url) {
         // It's a URL string, send directly
+        console.log('URL detected:', photoData.url.substring(0, 30) + '...');
+        
         const photoPayload = {
-          url: photoData.url || photoData.file,
+          url: photoData.url,
           caption: photoData.caption || '',
           date: photoData.date || new Date().toISOString()
         };
@@ -270,6 +292,8 @@ export const directApiCall = {
         console.log('Photo upload response received');
         
         return res.data;
+      } else {
+        throw new Error('No file or URL provided for photo upload');
       }
     } catch (err) {
       console.error('Error uploading photo:', err.response?.data || err.message || err);

@@ -1,61 +1,47 @@
-// Direct Todo Lists function without Express routing
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
 
-// Define the Todo and TodoList schemas
-const TodoSchema = new mongoose.Schema({
-  text: {
-    type: String,
-    required: true
-  },
-  completed: {
-    type: Boolean,
-    default: false
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+// Define the TodoList schema
+const todoListSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, required: true },
+  title: { type: String, required: true },
+  icon: { type: String, default: 'FaList' },
+  todos: [{
+    text: { type: String, required: true },
+    completed: { type: Boolean, default: false },
+    createdAt: { type: Date, default: Date.now }
+  }],
+  createdAt: { type: Date, default: Date.now }
 });
 
-const TodoListSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'user',
-    required: true
-  },
-  title: {
-    type: String,
-    required: true
-  },
-  icon: {
-    type: String,
-    default: '📝'
-  },
-  todos: [TodoSchema],
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
+// Create the TodoList model
+let TodoList;
+try {
+  // Try to get the model if it exists
+  TodoList = mongoose.model('TodoList');
+} catch (e) {
+  // Create the model if it doesn't exist
+  TodoList = mongoose.model('TodoList', todoListSchema, 'todolists');
+}
 
-// Create the model with explicit collection name
-// Note: Mongoose typically pluralizes the model name, so we need to specify the exact collection name
-const TodoList = mongoose.model('TodoList', TodoListSchema, 'todolists');
-
-// Function to verify JWT token
-const verifyToken = (token) => {
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    return { valid: true, decoded };
-  } catch (err) {
-    return { valid: false, error: err.message };
+// Helper function to extract user ID from token
+const getUserIdFromToken = (decodedToken) => {
+  // Handle different token structures
+  if (decodedToken.sub) {
+    return decodedToken.sub;
+  } else if (decodedToken._id) {
+    return decodedToken._id;
+  } else if (decodedToken.userId) {
+    return decodedToken.userId;
+  } else if (decodedToken.id) {
+    return decodedToken.id;
   }
+  
+  // Default to empty string if no ID found
+  return '';
 };
 
 exports.handler = async function(event, context) {
-  console.log('Todos direct function called with method:', event.httpMethod, 'and path:', event.path);
   // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -64,7 +50,7 @@ exports.handler = async function(event, context) {
     'Content-Type': 'application/json'
   };
   
-  // Handle OPTIONS request (preflight)
+  // Handle preflight OPTIONS request
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
@@ -74,98 +60,99 @@ exports.handler = async function(event, context) {
   }
   
   try {
-    console.log('Todos direct function called with method:', event.httpMethod);
-    console.log('Path:', event.path);
+    console.log('Todos direct function called with method:', event.httpMethod, 'and path:', event.path);
     
-    // Get token from headers
+    // Get the path parts after the function name
+    const pathParts = event.path.split('/').filter(part => part);
+    const functionIndex = pathParts.findIndex(part => part === 'todos-direct');
+    const relevantPathParts = pathParts.slice(functionIndex + 1);
+    
+    console.log('Relevant path parts:', JSON.stringify(relevantPathParts));
+    
+    // Check for Authorization header
     const authHeader = event.headers.authorization || event.headers.Authorization;
     console.log('Auth header present:', !!authHeader);
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('No valid auth header found');
+    if (!authHeader) {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ 
-          error: 'Unauthorized', 
-          message: 'No token provided' 
-        })
+        body: JSON.stringify({ error: 'Unauthorized', message: 'No authorization token provided' })
       };
     }
     
+    // Extract and verify JWT token
     const token = authHeader.split(' ')[1];
     console.log('Token extracted from header');
     
-    // Verify token
-    const { valid, decoded, error } = verifyToken(token);
-    console.log('Token validation result:', valid ? 'valid' : 'invalid');
-    
-    if (!valid) {
-      console.log('Token validation error:', error);
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('Token validation result: valid');
+      console.log('Token validated successfully');
+    } catch (tokenError) {
+      console.error('Token validation failed:', tokenError.message);
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ 
-          error: 'Unauthorized', 
-          message: 'Invalid token', 
-          details: error 
-        })
+        body: JSON.stringify({ error: 'Unauthorized', message: 'Invalid token' })
       };
     }
     
-    console.log('Token validated successfully');
-    
-    // Extract user ID from token (handle both token structures)
-    const userId = decoded.user ? decoded.user.id : decoded.id;
+    // Extract user ID from token
+    const userId = getUserIdFromToken(decodedToken);
     console.log('User ID extracted from token:', userId);
+    
+    if (!userId) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'Unauthorized', message: 'User ID not found in token' })
+      };
+    }
     
     // Connect to MongoDB
     console.log('Attempting to connect to MongoDB...');
     console.log('MongoDB URI exists:', !!process.env.MONGODB_URI);
     
-    try {
-      // Check if we already have an active connection
-      if (mongoose.connection.readyState === 1) {
-        console.log('Using existing MongoDB connection');
-      } else {
-        console.log('Creating new MongoDB connection');
-        await mongoose.connect(process.env.MONGODB_URI, {
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
-          serverSelectionTimeoutMS: 5000 // 5 second timeout
-        });
-        console.log('MongoDB connection successful');
-      }
-      
-      // List all collections in the database
-      const collections = await mongoose.connection.db.listCollections().toArray();
-      console.log('Available collections:', collections.map(c => c.name).join(', '));
-    } catch (dbError) {
-      console.error('MongoDB connection error:', dbError.message);
-      console.error('MongoDB connection error details:', dbError);
-      throw dbError; // Re-throw to be caught by the outer try/catch
+    if (!process.env.MONGODB_URI) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Server error', message: 'MongoDB URI not configured' })
+      };
     }
     
-    // Parse path to determine operation
-    const pathParts = event.path.split('/').filter(part => part);
+    // Connect to MongoDB with connection reuse
+    if (mongoose.connection.readyState === 0) {
+      console.log('Creating new MongoDB connection');
+      await mongoose.connect(process.env.MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 5000
+      });
+      console.log('MongoDB connection successful');
+    } else {
+      console.log('Reusing existing MongoDB connection');
+    }
     
-    // Handle different HTTP methods for TodoLists
-    if (pathParts.length <= 3) {
-      // TodoList operations
+    // Log available collections
+    const collections = await mongoose.connection.db.listCollections().toArray();
+    const collectionNames = collections.map(c => c.name).join(', ');
+    console.log('Available collections:', collectionNames);
+    
+    // Log model information
+    console.log('Collection name:', TodoList.collection.name);
+    console.log('Model name:', TodoList.modelName);
+    
+    // Handle Todo list operations
+    if (relevantPathParts.length === 0 || (relevantPathParts.length === 1 && !relevantPathParts[0])) {
       if (event.httpMethod === 'GET') {
-        console.log('Processing GET request for todo lists, user ID:', userId);
+        // Get all todo lists for the user
         try {
-          // Get all todo lists for the user
-          console.log('Querying TodoList collection for user:', userId);
-          console.log('Collection name:', TodoList.collection.name);
-          console.log('Model name:', TodoList.modelName);
-          
           // First try to find any documents in the collection
           const allDocs = await TodoList.find({}).limit(5);
           console.log(`Found ${allDocs.length} total documents in collection`);
-          if (allDocs.length > 0) {
-            console.log('Sample document:', JSON.stringify(allDocs[0]));
-          }
           
           // Now try to find documents for this specific user
           const todoLists = await TodoList.find({ user: userId }).sort({ createdAt: -1 });
@@ -200,16 +187,18 @@ exports.handler = async function(event, context) {
             };
           }
           
-          console.log('Creating new TodoList with title:', title, 'for user:', userId);
+          // Create new todo list
+          console.log('Creating new todo list with title:', title);
           const newTodoList = new TodoList({
-            user: userId,
             title,
-            icon: icon || '📝',
-            todos: []
+            icon: icon || 'FaList',
+            user: userId,
+            todos: [],
+            createdAt: new Date()
           });
           
           const savedList = await newTodoList.save();
-          console.log('Todo list saved successfully with ID:', savedList._id);
+          console.log('Todo list created successfully with ID:', savedList._id);
           
           return {
             statusCode: 201,
@@ -227,16 +216,35 @@ exports.handler = async function(event, context) {
             })
           };
         }
-      } 
-      else if (event.httpMethod === 'PUT') {
-        // Update an existing todo list
-        const listId = pathParts[2];
-        const updates = JSON.parse(event.body);
+      }
+    }
+    
+    // Handle operations on a specific todo list
+    if (relevantPathParts.length >= 1) {
+      const listId = relevantPathParts[0];
+      
+      // Validate list ID format
+      if (!mongoose.Types.ObjectId.isValid(listId)) {
+        console.log('Invalid list ID format:', listId);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Bad request', 
+            message: 'Invalid list ID format' 
+          })
+        };
+      }
+      
+      // GET a specific todo list
+      if (event.httpMethod === 'GET' && relevantPathParts.length === 1) {
+        console.log('Getting todo list with ID:', listId);
         
         // Find the todo list and make sure it belongs to the user
-        let todoList = await TodoList.findOne({ _id: listId, user: userId });
+        const todoList = await TodoList.findOne({ _id: listId, user: userId });
         
         if (!todoList) {
+          console.log('Todo list not found or does not belong to user');
           return {
             statusCode: 404,
             headers,
@@ -247,21 +255,61 @@ exports.handler = async function(event, context) {
           };
         }
         
-        // Update the todo list
-        todoList = await TodoList.findByIdAndUpdate(
-          listId,
-          { $set: { title: updates.title, icon: updates.icon } },
-          { new: true }
-        );
-        
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify(todoList)
         };
-      } 
-      else if (event.httpMethod === 'DELETE') {
-        // Delete a todo list
+      }
+      // PUT to update a todo list
+      else if (event.httpMethod === 'PUT' && relevantPathParts.length === 1) {
+        console.log('Updating todo list with ID:', listId);
+        try {
+          const updates = JSON.parse(event.body);
+          
+          // Find the todo list and make sure it belongs to the user
+          let todoList = await TodoList.findOne({ _id: listId, user: userId });
+          
+          if (!todoList) {
+            console.log('Todo list not found or does not belong to user');
+            return {
+              statusCode: 404,
+              headers,
+              body: JSON.stringify({ 
+                error: 'Not found', 
+                message: 'Todo list not found or does not belong to user' 
+              })
+            };
+          }
+          
+          // Update the todo list
+          todoList = await TodoList.findByIdAndUpdate(
+            listId,
+            { $set: { title: updates.title, icon: updates.icon } },
+            { new: true }
+          );
+          
+          console.log('Todo list updated successfully');
+          
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify(todoList)
+          };
+        } catch (parseError) {
+          console.error('Error parsing request body:', parseError);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Bad request', 
+              message: 'Invalid request body' 
+            })
+          };
+        }
+      }
+      // DELETE a todo list
+      else if (event.httpMethod === 'DELETE' && relevantPathParts.length === 1) {
         console.log('Deleting todo list with ID:', listId);
         
         // Find the todo list and make sure it belongs to the user
@@ -288,174 +336,160 @@ exports.handler = async function(event, context) {
           body: JSON.stringify({ message: 'Todo list deleted successfully' })
         };
       }
-    }
-    // Handle Todo item operations
-    else if (pathParts.length >= 4) {
-      console.log('Handling todo item operation with path parts:', JSON.stringify(pathParts));
-      const listId = pathParts[2];
       
-      // Check if this is a valid MongoDB ObjectId
-      if (!listId.match(/^[0-9a-fA-F]{24}$/)) {
-        console.log('Invalid list ID format:', listId);
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ 
-            error: 'Bad request', 
-            message: 'Invalid list ID format' 
-          })
-        };
-      }
-      
-      // Find the todo list and make sure it belongs to the user
-      const todoList = await TodoList.findOne({ _id: listId, user: userId });
-      
-      if (!todoList) {
-        return {
-          statusCode: 404,
-          headers,
-          body: JSON.stringify({ 
-            error: 'Not found', 
-            message: 'Todo list not found or does not belong to user' 
-          })
-        };
-      }
-      
-      // Check if this is a todos operation
-      if (pathParts[3] === 'todos' && event.httpMethod === 'POST') {
-        // Add a new todo to the list
-        console.log('Adding new todo to list:', listId, 'Request body:', event.body);
-        try {
-          const { text } = JSON.parse(event.body);
-          
-          // Validate required fields
-          if (!text) {
-            console.log('Todo text is required but was not provided');
+      // Handle Todo item operations
+      if (relevantPathParts.length >= 2 && relevantPathParts[1] === 'todos') {
+        console.log('Handling todo item operation');
+        
+        // Find the todo list and make sure it belongs to the user
+        const todoList = await TodoList.findOne({ _id: listId, user: userId });
+        
+        if (!todoList) {
+          console.log('Todo list not found or does not belong to user');
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Not found', 
+              message: 'Todo list not found or does not belong to user' 
+            })
+          };
+        }
+        
+        // POST to add a new todo item
+        if (event.httpMethod === 'POST' && relevantPathParts.length === 2) {
+          console.log('Adding new todo item to list:', listId);
+          try {
+            const todoData = JSON.parse(event.body);
+            
+            // Validate required fields
+            if (!todoData.text) {
+              console.log('Todo text is required but was not provided');
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                  error: 'Bad request', 
+                  message: 'Todo text is required' 
+                })
+              };
+            }
+            
+            // Create new todo item
+            const newTodo = {
+              text: todoData.text,
+              completed: todoData.completed || false,
+              createdAt: new Date()
+            };
+            
+            // Add todo to list
+            todoList.todos.push(newTodo);
+            await todoList.save();
+            
+            console.log('Todo item added successfully');
+            
+            return {
+              statusCode: 201,
+              headers,
+              body: JSON.stringify(todoList)
+            };
+          } catch (parseError) {
+            console.error('Error parsing request body:', parseError);
             return {
               statusCode: 400,
               headers,
               body: JSON.stringify({ 
                 error: 'Bad request', 
-                message: 'Todo text is required' 
+                message: 'Invalid request body' 
               })
             };
           }
+        }
+        
+        // Operations on a specific todo item
+        if (relevantPathParts.length === 3) {
+          const todoId = relevantPathParts[2];
+          console.log('Operating on specific todo item:', todoId);
           
-          console.log('Creating new todo with text:', text);
-          const newTodo = {
-            text,
-            completed: false,
-            createdAt: new Date()
-          };
+          // Find the todo item in the list
+          const todoIndex = todoList.todos.findIndex(todo => todo._id.toString() === todoId);
           
-          todoList.todos.push(newTodo);
-          
-          try {
-            const savedList = await todoList.save();
-            console.log('Todo added successfully with ID:', savedList.todos[savedList.todos.length - 1]._id);
-            
-            // Return the entire updated list so the frontend has the latest data
+          if (todoIndex === -1) {
+            console.log('Todo item not found in list');
             return {
-              statusCode: 201,
-              headers,
-              body: JSON.stringify(savedList)
-            };
-          } catch (saveError) {
-            console.error('Error saving todo list:', saveError);
-            return {
-              statusCode: 500,
+              statusCode: 404,
               headers,
               body: JSON.stringify({ 
-                error: 'Server error', 
-                message: 'Failed to save todo: ' + saveError.message 
+                error: 'Not found', 
+                message: 'Todo item not found in list' 
               })
             };
           }
-        } catch (parseError) {
-          console.error('Error parsing request body:', parseError);
-          return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ 
-              error: 'Bad request', 
-              message: 'Invalid request body: ' + parseError.message 
-            })
-          };
-        }
-      } 
-      else if (event.httpMethod === 'PUT') {
-        // Update a todo in the list
-        const todoId = pathParts[4];
-        const { text, completed } = JSON.parse(event.body);
-        
-        // Find the todo in the list
-        const todo = todoList.todos.id(todoId);
-        
-        if (!todo) {
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ 
-              error: 'Not found', 
-              message: 'Todo not found in the list' 
-            })
-          };
-        }
-        
-        // Update the todo
-        if (text !== undefined) todo.text = text;
-        if (completed !== undefined) todo.completed = completed;
-        
-        await todoList.save();
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(todo)
-        };
-      } 
-      // Handle DELETE for todos
-      else if (pathParts[3] === 'todos' && pathParts.length >= 5 && event.httpMethod === 'DELETE') {
-        const todoId = pathParts[4];
-        console.log('Deleting specific todo with ID:', todoId);
-        
-        // Find the todo in the list
-        const todo = todoList.todos.id(todoId);
-        
-        if (!todo) {
-          console.log('Todo not found in the list');
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ 
-              error: 'Not found', 
-              message: 'Todo not found in the list' 
-            })
-          };
-        }
-        
-        // Remove the todo
-        try {
-          todoList.todos.pull(todoId);
-          const savedList = await todoList.save();
-          console.log('Todo deleted successfully');
           
-          // Return the entire updated list
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify(savedList)
-          };
-        } catch (saveError) {
-          console.error('Error removing todo from list:', saveError);
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ 
-              error: 'Server error', 
-              message: 'Failed to delete todo: ' + saveError.message 
-            })
-          };
+          // PUT to update a todo item
+          if (event.httpMethod === 'PUT') {
+            console.log('Updating todo item:', todoId);
+            try {
+              const updates = JSON.parse(event.body);
+              
+              // Update the todo item
+              if (updates.text !== undefined) {
+                todoList.todos[todoIndex].text = updates.text;
+              }
+              
+              if (updates.completed !== undefined) {
+                todoList.todos[todoIndex].completed = updates.completed;
+              }
+              
+              await todoList.save();
+              console.log('Todo item updated successfully');
+              
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify(todoList)
+              };
+            } catch (parseError) {
+              console.error('Error parsing request body:', parseError);
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ 
+                  error: 'Bad request', 
+                  message: 'Invalid request body' 
+                })
+              };
+            }
+          }
+          
+          // DELETE a todo item
+          if (event.httpMethod === 'DELETE') {
+            console.log('Deleting todo item:', todoId);
+            
+            // Remove the todo item from the list
+            todoList.todos.splice(todoIndex, 1);
+            
+            try {
+              await todoList.save();
+              console.log('Todo item deleted successfully');
+              
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify(todoList)
+              };
+            } catch (saveError) {
+              console.error('Error saving todo list after deletion:', saveError);
+              return {
+                statusCode: 500,
+                headers,
+                body: JSON.stringify({ 
+                  error: 'Server error', 
+                  message: 'Failed to delete todo: ' + saveError.message 
+                })
+              };
+            }
+          }
         }
       }
     }

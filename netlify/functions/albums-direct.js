@@ -337,11 +337,21 @@ exports.handler = async function(event, context) {
           }
           
           console.log('Creating new photo with URL type:', typeof url);
-          console.log('URL starts with:', url.substring(0, 30) + '...');
+          
+          // Check if it's a base64 image
+          let photoUrl = url;
+          if (typeof url === 'string' && url.startsWith('data:image')) {
+            console.log('Detected base64 image data');
+            // For this implementation, we'll just store the base64 data directly
+            // In a production app, you might want to save this to cloud storage instead
+            photoUrl = url;
+          } else {
+            console.log('URL starts with:', url.substring(0, 30) + '...');
+          }
           
           // Create the new photo object
           const newPhoto = {
-            url: url,
+            url: photoUrl,
             caption: caption || '',
             date: date ? new Date(date) : new Date(),
             createdAt: new Date()
