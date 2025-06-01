@@ -262,12 +262,13 @@ exports.handler = async function(event, context) {
       } 
       else if (event.httpMethod === 'DELETE') {
         // Delete a todo list
-        const listId = pathParts[2];
+        console.log('Deleting todo list with ID:', listId);
         
         // Find the todo list and make sure it belongs to the user
         const todoList = await TodoList.findOne({ _id: listId, user: userId });
         
         if (!todoList) {
+          console.log('Todo list not found or does not belong to user');
           return {
             statusCode: 404,
             headers,
@@ -279,6 +280,7 @@ exports.handler = async function(event, context) {
         }
         
         await TodoList.findByIdAndDelete(listId);
+        console.log('Todo list deleted successfully');
         
         return {
           statusCode: 200,
@@ -289,7 +291,9 @@ exports.handler = async function(event, context) {
     }
     // Handle Todo item operations
     else if (pathParts.length >= 4) {
+      console.log('Handling todo item operation with path parts:', pathParts);
       const listId = pathParts[2];
+      const todoOperation = pathParts[3];
       
       // Find the todo list and make sure it belongs to the user
       const todoList = await TodoList.findOne({ _id: listId, user: userId });
@@ -307,34 +311,51 @@ exports.handler = async function(event, context) {
       
       if (event.httpMethod === 'POST') {
         // Add a new todo to the list
-        const { text } = JSON.parse(event.body);
-        
-        // Validate required fields
-        if (!text) {
+        console.log('Adding new todo to list:', listId, 'Request body:', event.body);
+        try {
+          const { text } = JSON.parse(event.body);
+          
+          // Validate required fields
+          if (!text) {
+            console.log('Todo text is required but was not provided');
+            return {
+              statusCode: 400,
+              headers,
+              body: JSON.stringify({ 
+                error: 'Bad request', 
+                message: 'Todo text is required' 
+              })
+            };
+          }
+          
+          console.log('Creating new todo with text:', text);
+          const newTodo = {
+            text,
+            completed: false,
+            createdAt: new Date()
+          };
+          
+          todoList.todos.push(newTodo);
+          const savedList = await todoList.save();
+          console.log('Todo added successfully with ID:', savedList.todos[savedList.todos.length - 1]._id);
+          
+          // Return the entire updated list so the frontend has the latest data
+          return {
+            statusCode: 201,
+            headers,
+            body: JSON.stringify(savedList)
+          };
+        } catch (parseError) {
+          console.error('Error parsing request body:', parseError);
           return {
             statusCode: 400,
             headers,
             body: JSON.stringify({ 
               error: 'Bad request', 
-              message: 'Todo text is required' 
+              message: 'Invalid request body' 
             })
           };
         }
-        
-        const newTodo = {
-          text,
-          completed: false,
-          createdAt: new Date()
-        };
-        
-        todoList.todos.push(newTodo);
-        await todoList.save();
-        
-        return {
-          statusCode: 201,
-          headers,
-          body: JSON.stringify(newTodo)
-        };
       } 
       else if (event.httpMethod === 'PUT') {
         // Update a todo in the list
@@ -369,31 +390,50 @@ exports.handler = async function(event, context) {
       } 
       else if (event.httpMethod === 'DELETE') {
         // Delete a todo from the list
-        const todoId = pathParts[4];
+        console.log('Deleting todo from list:', listId);
         
-        // Find the todo in the list
-        const todo = todoList.todos.id(todoId);
-        
-        if (!todo) {
+        // Check if we're deleting a specific todo or the entire list
+        if (todoOperation === 'todo' && pathParts.length >= 5) {
+          const todoId = pathParts[4];
+          console.log('Deleting specific todo with ID:', todoId);
+          
+          // Find the todo in the list
+          const todo = todoList.todos.id(todoId);
+          
+          if (!todo) {
+            console.log('Todo not found in the list');
+            return {
+              statusCode: 404,
+              headers,
+              body: JSON.stringify({ 
+                error: 'Not found', 
+                message: 'Todo not found in the list' 
+              })
+            };
+          }
+          
+          // Remove the todo
+          todoList.todos.pull(todoId);
+          const savedList = await todoList.save();
+          console.log('Todo deleted successfully');
+          
+          // Return the entire updated list
           return {
-            statusCode: 404,
+            statusCode: 200,
+            headers,
+            body: JSON.stringify(savedList)
+          };
+        } else {
+          console.log('Invalid path for DELETE operation:', event.path);
+          return {
+            statusCode: 400,
             headers,
             body: JSON.stringify({ 
-              error: 'Not found', 
-              message: 'Todo not found in the list' 
+              error: 'Bad request', 
+              message: 'Invalid path for todo deletion' 
             })
           };
         }
-        
-        // Remove the todo
-        todoList.todos.pull(todoId);
-        await todoList.save();
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ message: 'Todo deleted successfully' })
-        };
       }
     }
     

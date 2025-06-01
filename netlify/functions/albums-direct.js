@@ -322,11 +322,14 @@ exports.handler = async function(event, context) {
           console.log('Creating new photo with URL:', url);
           const newPhoto = {
             url,
-            caption,
-            date: date || new Date(),
+            caption: caption || '',
+            date: date ? new Date(date) : new Date(),
             createdAt: new Date()
           };
           
+          console.log('New photo object:', newPhoto);
+          
+          // Add the photo to the album
           album.photos.push(newPhoto);
           
           // If this is the first photo, set it as the cover image
@@ -334,8 +337,9 @@ exports.handler = async function(event, context) {
             album.coverImage = url;
           }
           
+          console.log('Saving album with new photo...');
           const savedAlbum = await album.save();
-          console.log('Photo added successfully to album');
+          console.log('Photo added successfully to album with ID:', savedAlbum.photos[savedAlbum.photos.length - 1]._id);
           
           // Return the entire updated album so the frontend has the latest data
           return {
@@ -350,7 +354,7 @@ exports.handler = async function(event, context) {
             headers,
             body: JSON.stringify({ 
               error: 'Bad request', 
-              message: 'Invalid request body' 
+              message: 'Invalid request body: ' + parseError.message 
             })
           };
         }

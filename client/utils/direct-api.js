@@ -210,16 +210,24 @@ export const directApiCall = {
   // For photo uploads, we need to handle multipart/form-data
   addPhoto: async (albumId, photoData) => {
     try {
+      console.log('Adding photo to album:', albumId, 'Photo data:', photoData);
+      
       // For direct functions, we'll just pass the URL and caption
       // Note: In a real app, you'd need to handle file uploads separately
-      const res = await api.post(`/.netlify/functions/albums-direct/${albumId}/photos`, {
+      const photoPayload = {
         url: photoData.url || photoData.file,
-        caption: photoData.caption,
-        date: photoData.date
-      });
+        caption: photoData.caption || '',
+        date: photoData.date || new Date().toISOString()
+      };
+      
+      console.log('Sending photo data:', photoPayload);
+      
+      const res = await api.post(`/.netlify/functions/albums-direct/${albumId}/photos`, photoPayload);
+      console.log('Photo upload response:', res.data);
       
       return res.data;
     } catch (err) {
+      console.error('Error uploading photo:', err.response?.data || err.message || err);
       throw err.response?.data || err;
     }
   },
