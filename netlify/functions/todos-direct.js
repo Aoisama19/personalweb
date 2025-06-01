@@ -112,7 +112,11 @@ exports.handler = async function(event, context) {
       };
     }
     
-    console.log('Token validated successfully for user ID:', decoded.user.id);
+    console.log('Token validated successfully');
+    
+    // Extract user ID from token (handle both token structures)
+    const userId = decoded.user ? decoded.user.id : decoded.id;
+    console.log('User ID extracted from token:', userId);
     
     // Connect to MongoDB
     console.log('Attempting to connect to MongoDB...');
@@ -141,11 +145,8 @@ exports.handler = async function(event, context) {
       throw dbError; // Re-throw to be caught by the outer try/catch
     }
     
-    // Extract user ID from decoded token
-    console.log('Decoded token:', JSON.stringify(decoded));
-    const userId = decoded.user ? decoded.user.id : decoded.id;
-    console.log('Using user ID:', userId);
-    const pathParts = event.path.split('/');
+    // Parse path to determine operation
+    const pathParts = event.path.split('/').filter(part => part);
     
     // Handle different HTTP methods for TodoLists
     if (pathParts.length <= 3) {
@@ -268,7 +269,7 @@ exports.handler = async function(event, context) {
           body: JSON.stringify({ message: 'Todo list deleted successfully' })
         };
       }
-    } 
+    }
     // Handle Todo item operations
     else if (pathParts.length >= 4) {
       const listId = pathParts[2];
