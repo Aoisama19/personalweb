@@ -55,6 +55,7 @@ const verifyToken = (token) => {
 };
 
 exports.handler = async function(event, context) {
+  console.log('Todos direct function called with method:', event.httpMethod, 'and path:', event.path);
   // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -182,34 +183,50 @@ exports.handler = async function(event, context) {
       } 
       else if (event.httpMethod === 'POST') {
         // Create a new todo list
-        const { title, icon } = JSON.parse(event.body);
-        
-        // Validate required fields
-        if (!title) {
+        console.log('Creating new todo list, request body:', event.body);
+        try {
+          const { title, icon } = JSON.parse(event.body);
+          
+          // Validate required fields
+          if (!title) {
+            console.log('Title is required but was not provided');
+            return {
+              statusCode: 400,
+              headers,
+              body: JSON.stringify({ 
+                error: 'Bad request', 
+                message: 'Title is required' 
+              })
+            };
+          }
+          
+          console.log('Creating new TodoList with title:', title, 'for user:', userId);
+          const newTodoList = new TodoList({
+            user: userId,
+            title,
+            icon: icon || '📝',
+            todos: []
+          });
+          
+          const savedList = await newTodoList.save();
+          console.log('Todo list saved successfully with ID:', savedList._id);
+          
+          return {
+            statusCode: 201,
+            headers,
+            body: JSON.stringify(savedList)
+          };
+        } catch (parseError) {
+          console.error('Error parsing request body:', parseError);
           return {
             statusCode: 400,
             headers,
             body: JSON.stringify({ 
               error: 'Bad request', 
-              message: 'Title is required' 
+              message: 'Invalid request body' 
             })
           };
         }
-        
-        const newTodoList = new TodoList({
-          user: userId,
-          title,
-          icon: icon || '📝',
-          todos: []
-        });
-        
-        await newTodoList.save();
-        
-        return {
-          statusCode: 201,
-          headers,
-          body: JSON.stringify(newTodoList)
-        };
       } 
       else if (event.httpMethod === 'PUT') {
         // Update an existing todo list

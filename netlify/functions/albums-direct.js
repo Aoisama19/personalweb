@@ -64,6 +64,7 @@ const verifyToken = (token) => {
 };
 
 exports.handler = async function(event, context) {
+  console.log('Albums direct function called with method:', event.httpMethod, 'and path:', event.path);
   // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -301,41 +302,58 @@ exports.handler = async function(event, context) {
       
       if (event.httpMethod === 'POST') {
         // Add a new photo to the album
-        const { url, caption, date } = JSON.parse(event.body);
-        
-        // Validate required fields
-        if (!url) {
+        console.log('Adding new photo to album:', albumId, 'Request body:', event.body);
+        try {
+          const { url, caption, date } = JSON.parse(event.body);
+          
+          // Validate required fields
+          if (!url) {
+            console.log('Photo URL is required but was not provided');
+            return {
+              statusCode: 400,
+              headers,
+              body: JSON.stringify({ 
+                error: 'Bad request', 
+                message: 'Photo URL is required' 
+              })
+            };
+          }
+          
+          console.log('Creating new photo with URL:', url);
+          const newPhoto = {
+            url,
+            caption,
+            date: date || new Date(),
+            createdAt: new Date()
+          };
+          
+          album.photos.push(newPhoto);
+          
+          // If this is the first photo, set it as the cover image
+          if (!album.coverImage && album.photos.length === 1) {
+            album.coverImage = url;
+          }
+          
+          const savedAlbum = await album.save();
+          console.log('Photo added successfully to album');
+          
+          // Return the entire updated album so the frontend has the latest data
+          return {
+            statusCode: 201,
+            headers,
+            body: JSON.stringify(savedAlbum)
+          };
+        } catch (parseError) {
+          console.error('Error parsing request body:', parseError);
           return {
             statusCode: 400,
             headers,
             body: JSON.stringify({ 
               error: 'Bad request', 
-              message: 'Photo URL is required' 
+              message: 'Invalid request body' 
             })
           };
         }
-        
-        const newPhoto = {
-          url,
-          caption,
-          date: date || new Date(),
-          createdAt: new Date()
-        };
-        
-        album.photos.push(newPhoto);
-        
-        // If this is the first photo, set it as the cover image
-        if (!album.coverImage && album.photos.length === 1) {
-          album.coverImage = url;
-        }
-        
-        await album.save();
-        
-        return {
-          statusCode: 201,
-          headers,
-          body: JSON.stringify(newPhoto)
-        };
       } 
       else if (event.httpMethod === 'DELETE' && pathParts.length >= 5) {
         // Delete a photo from the album
